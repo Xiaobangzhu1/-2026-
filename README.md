@@ -1,4 +1,4 @@
-#Course Project
+# Course Project
 
 This repository contains code for EEG-based classification tasks (BCIC2A, CHINESE, MDD, SEED, SLEEP).
 

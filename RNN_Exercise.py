@@ -28,10 +28,10 @@ class ExerciseEEGSimpleRNN(nn.Module):
         self.grad_clip = grad_clip
 
         self.rnn = nn.RNN(
-            input_size=____,  # TODO-RNN-1: 改成输入特征维度 chans
+            input_size=chans,  # TODO-RNN-1: 改成输入特征维度 chans
             hidden_size=hidden_dim,
             num_layers=num_layers,
-            nonlinearity=____,  # TODO-RNN-2: 填 "relu"（减轻梯度消失）
+            nonlinearity='relu',
             batch_first=True,
             dropout=dropout if num_layers > 1 else 0.0,
             bidirectional=bidirectional,
@@ -50,7 +50,7 @@ class ExerciseEEGSimpleRNN(nn.Module):
         # 梯度消失/爆炸处理（初始化侧）
         for name, param in self.rnn.named_parameters():
             if "weight_hh" in name:
-                ____  # TODO-RNN-3: 对循环权重做正交初始化
+                nn.init.orthogonal_(param)  # TODO-RNN-3: 对循环权重做正交初始化
             elif "weight_ih" in name:
                 nn.init.xavier_uniform_(param)
             elif "bias" in name:
@@ -58,13 +58,13 @@ class ExerciseEEGSimpleRNN(nn.Module):
 
     def forward(self, x):
         # x 原始 shape: (B, C, T)
-        x = ____  # TODO-RNN-4: 变换为 (B, T, C)
+        x = x.transpose(1, 2)  # TODO-RNN-4: 变换为 (B, T, C)
 
         # h_n: (num_layers * num_directions, B, hidden_dim)
         out, h_n = self.rnn(x)
 
         if self.bidirectional:
-            feat = ____  # TODO-RNN-5: 拼接最后一层双向 hidden state
+            feat = torch.cat([h_n[-2], h_n[-1]], dim=1)  # TODO-RNN-5: 拼接最后一层双向 hidden state
         else:
             feat = h_n[-1]
 
@@ -73,7 +73,7 @@ class ExerciseEEGSimpleRNN(nn.Module):
 
     def clip_gradients(self):
         # 梯度爆炸处理（训练侧）：backward 后执行
-        return ____  # TODO-RNN-6: 使用 clip_grad_norm_ 裁剪 self.parameters()
+        return torch.nn.utils.clip_grad_norm_(self.parameters(), self.grad_clip)
 
 
 class ExerciseEEGLSTM(nn.Module):

@@ -1,10 +1,16 @@
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+
+try:
+    import yaml
+except Exception:
+    yaml = None
 
 from TEST_DATASET import TrainDataset
 from eeg_pipeline import (
@@ -19,9 +25,10 @@ from eeg_pipeline import (
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train EEG classifier.")
+    parser.add_argument("--config", default=None, help="Path to YAML config to load (overrides defaults).")
     parser.add_argument("--dataset", default="MDD", help="Dataset name under data-root.")
     parser.add_argument("--data-root", default="course project", help="Root directory containing datasets.")
-    parser.add_argument("--model", default="ctnet", choices=["ctnet", "gru", "lstm"])
+    parser.add_argument("--model", default="ctnet", choices=["ctnet", "sleep_ctnet", "gru", "lstm"])
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--lr", type=float, default=1e-3)
@@ -46,7 +53,48 @@ def parse_args():
     parser.add_argument("--pool-size-1", type=int, default=8)
     parser.add_argument("--pool-size-2", type=int, default=8)
     parser.add_argument("--mlp-ratio", type=int, default=2)
-    return parser.parse_args()
+    args = parser.parse_args()
+    apply_config_overrides(args, parser)
+    return args
+
+
+def normalize_name(value: str) -> str:
+    return value.strip().lower().replace("-", "_")
+
+
+def resolve_default_config_path(dataset: str, model: str) -> Path:
+    if normalize_name(dataset) == "sleep" and normalize_name(model) == "sleep_ctnet":
+        return Path("configs/sleep/ctnet.yaml")
+    return Path("configs/default.yaml")
+
+
+def load_yaml_config(path: Path) -> dict:
+    if yaml is None:
+        raise RuntimeError("PyYAML is required to load config files.")
+    with path.open("r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    if not isinstance(data, dict):
+        raise ValueError(f"Config file must contain a mapping: {path}")
+    return data
+
+
+def apply_config_overrides(args, parser) -> None:
+    config_path = Path(args.config) if args.config else resolve_default_config_path(args.dataset, args.model)
+    config_values = load_yaml_config(config_path)
+    cli_flags = {arg.split("=")[0] for arg in sys.argv[1:] if arg.startswith("--")}
+
+    for action in parser._actions:
+        if not action.dest or action.dest == "help":
+            continue
+        key = action.dest.replace("-", "_")
+        if key not in config_values:
+            continue
+        option_strings = set(action.option_strings)
+        if option_strings & cli_flags:
+            continue
+        setattr(args, action.dest, config_values[key])
+
+    args.config = str(config_path)
 
 
 def evaluate(model, loader, criterion, device):
@@ -119,6 +167,7 @@ def main():
     print(f"Train shape: {tuple(train_ds.x.shape)}")
     print(f"Val shape:   {tuple(val_ds.x.shape)}")
     print(f"Model: {args.model}")
+    print(f"Config: {args.config}")
     print(f"Device: {device}")
 
     for epoch in range(1, args.epochs + 1):

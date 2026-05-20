@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from RNN import EEGGRU, EEGLSTM
-from ctnet_model import CTNetClassifier
+from sleep_ctnet import CTNetClassifier
 
 
 def set_seed(seed: int) -> None:
@@ -59,7 +59,7 @@ def build_model(model_name: str, channels: int, num_classes: int, args) -> torch
             bidirectional=not args.unidirectional,
             grad_clip=args.grad_clip,
         )
-    if model_name == "ctnet":
+    if model_name == "sleep_ctnet":
         return CTNetClassifier(
             chans=channels,
             num_classes=num_classes,

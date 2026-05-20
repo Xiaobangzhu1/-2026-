@@ -28,7 +28,7 @@ def parse_args():
     parser.add_argument("--config", default=None, help="Path to YAML config to load (overrides defaults).")
     parser.add_argument("--dataset", default="MDD", help="Dataset name under data-root.")
     parser.add_argument("--data-root", default="course project", help="Root directory containing datasets.")
-    parser.add_argument("--model", default="ctnet", choices=["ctnet", "sleep_ctnet", "gru", "lstm"])
+    parser.add_argument("--model", default="sleep_ctnet", choices=["sleep_ctnet", "gru", "lstm"])
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--lr", type=float, default=1e-3)
